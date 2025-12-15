@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag and Drop Table</title>
+    <style>
+
+        body {
+            font-family:Arial, Helvetica, sans-serif
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 640px;
+            margin: 2rem auto;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+
+        caption {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-align: left;
+        }
+
+        .drag-col {
+            width: 48px;
+            text-align: center;
+        }
+
+        .drag-icon {
+            display: inline-block;
+            cursor: grab;
+            user-select: none;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .dragging {
+            opacity: 0.85;
+            transform: translate(4px, -10px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+            position: relative;
+            background-color: white;
+            z-index: 1;
+        }
+
+        .selected-row {
+            outline: 2px solid #4c8bf5;
+            background: #e8f0fe;
+        }
+
+        .move-row-control {
+            text-align: center;
+            background: #f6f8fb;
+        }
+
+        .move-row-control button {
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+
+        .sr-only {
+            clip: rect(0 0 0 0);
+            clip-path: inset(50%);
+            height: 1px;
+            overflow: hidden;
+            position: absolute;
+            white-space: nowrap;
+            width: 1px;
+        }
+
+        #explanation {
+            font-weight:300;
+            white-space: pre-line;
+            line-height: 1.5em;
+        } 
+
+        #drag-status {
+            padding: 1em;
+            margin: 0.5em;
+            border: 1px solid black;
+        }
+
+        h2 {
+            font-size: 1.25em;
+        }
+    </style>
+</head>
+
+<body>    
+    <p>Note: This is a quick draft of accessible drag and drop. The drag and drop feature itself buggy, but the idea is to show one way of fulfilling WCAG 2.5.7 Dragging movements (Level AA) by incorporating a selection and buttons to move the element up and down instead of only keyboard / mouse actions.</p>
+    <button>Focusable button for testing</button>
+
+    <h2>This box will show what ARIA-LIVE status messages are sent to assistive technology users</h2>
+    <div id="drag-status" aria-live="polite"></div>
+    <!--<div id="drag-status" class="sr-only" aria-live="polite"></div>-->
+    <table>
+        <caption>Project Tasks Priority
+            <details id="explanation">
+                <summary>Table operation information</summary>
+                Column one has buttons that can be used to reorder the items in the table. 
+                With mouse and keyboard you can select an item by pressing Space or Enter, or by clicking the item.
+                After selection the item can be moved up or down using arrow keys, or the buttons that appear before and after the selected row.
+                With mouse you can drag and drop the items without selection.
+            </details>
+        </caption>
+        <thead>
+            <tr>
+                <th class="drag-col" scope="col"><span class="sr-only">Reorder</span></th>
+                <th scope="col">Task</th>
+                <th scope="col">Owner</th>
+                <th scope="col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Design wireframes</td>
+                <td>Alex</td>
+                <td>In progress</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Set up API</td>
+                <td>Morgan</td>
+                <td>Pending</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Write documentation</td>
+                <td>Riley</td>
+                <td>Pending</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>QA review</td>
+                <td>Sam</td>
+                <td>Not started</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Implement drag-and-drop</td>
+                <td>Taylor</td>
+                <td>In progress</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Accessibility audit</td>
+                <td>Jordan</td>
+                <td>Planned</td>
+            </tr>
+            <tr>
+                <td class="drag-col"><button class="drag-icon" aria-label="Reorder">&#8942;&#8942;</button></td>
+                <td>Deploy to staging</td>
+                <td>Avery</td>
+                <td>Blocked</td>
+            </tr>
+        </tbody>
+    </table>
+
+    
+    <button>Focusable button for testing</button>
+    <p>Lorem ipsum dolor sit amet consectetur, adipisicing elit. Distinctio dolor iusto dolores non assumenda obcaecati voluptatibus atque pariatur sapiente error.</p>
+</body>
+
+<script>
+    const tbody = document.querySelector('tbody');
+    const handles = tbody.querySelectorAll('.drag-icon');
+    handles.forEach((handle) => {
+        handle.setAttribute('draggable', 'true');
+        handle.setAttribute('aria-grabbed', 'false');
+    });
+
+    let draggedRow = null;
+    let selectedRow = null;
+    const status = document.getElementById('drag-status');
+
+    const getRowLabel = (row) => {
+        const cell = row.querySelector('td:nth-child(2)');
+        return cell ? cell.textContent.trim() : 'Row';
+    };
+
+    const announce = (message) => {
+        status.textContent = message;
+    };
+
+    const setHandleLabels = () => {
+        handles.forEach((handle) => {
+            const taskCell = handle.closest('tr')?.querySelector('td:nth-child(2)');
+            const taskName = taskCell ? taskCell.textContent.trim() : 'item';
+            handle.setAttribute('aria-label', `Reorder ${taskName}`);
+        });
+    };
+    setHandleLabels();
+
+    let currentControls = { upBtn: null, downBtn: null };
+    let lockedFocusables = [];
+
+    const clearFocusLock = () => {
+        lockedFocusables.forEach((el) => {
+            const prev = el.dataset.prevTabindex;
+            if (prev === undefined || prev === 'default') {
+                el.removeAttribute('tabindex');
+            } else {
+                el.setAttribute('tabindex', prev);
+            }
+            delete el.dataset.prevTabindex;
+        });
+        lockedFocusables = [];
+    };
+
+    const setFocusLock = (allowed = []) => {
+        clearFocusLock();
+        const focusables = document.querySelectorAll('button, [href], input, select, textarea, [tabindex]');
+        focusables.forEach((el) => {
+            if (allowed.includes(el)) return;
+            if (!el.dataset.prevTabindex) {
+                el.dataset.prevTabindex = el.getAttribute('tabindex') ?? 'default';
+            }
+            el.setAttribute('tabindex', '-1');
+            lockedFocusables.push(el);
+        });
+        allowed.forEach((el) => {
+            if (el) el.tabIndex = 0;
+        });
+    };
+
+    const removeMoveRows = () => {
+        tbody.querySelectorAll('.move-row-up, .move-row-down').forEach((el) => el.remove());
+        currentControls = { upBtn: null, downBtn: null };
+    };
+
+    const addMoveRows = (row, handle) => {
+        if (!row) return;
+        removeMoveRows();
+        const colCount = row.children.length;
+
+        const upRow = document.createElement('tr');
+        upRow.className = 'move-row-up';
+        const upCell = document.createElement('td');
+        upCell.className = 'move-row-control';
+        upCell.colSpan = colCount;
+        const upBtn = document.createElement('button');
+        upBtn.type = 'button';
+        upBtn.textContent = 'Up';
+        upBtn.setAttribute('aria-label', 'Move row up');
+        upBtn.addEventListener('click', () => moveRow(row, 'up', handle, 'up'));
+        upCell.appendChild(upBtn);
+        upRow.appendChild(upCell);
+        row.parentNode.insertBefore(upRow, row);
+
+        const downRow = document.createElement('tr');
+        downRow.className = 'move-row-down';
+        const downCell = document.createElement('td');
+        downCell.className = 'move-row-control';
+        downCell.colSpan = colCount;
+        const downBtn = document.createElement('button');
+        downBtn.type = 'button';
+        downBtn.textContent = 'Down';
+        downBtn.setAttribute('aria-label', 'Move row down');
+        downBtn.addEventListener('click', () => moveRow(row, 'down', handle, 'down'));
+        downCell.appendChild(downBtn);
+        downRow.appendChild(downCell);
+        const nextRow = row.nextElementSibling;
+        row.parentNode.insertBefore(downRow, nextRow);
+
+        currentControls = { upBtn, downBtn };
+    };
+
+    const getRowPosition = (row) => {
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter((r) => !r.classList.contains('move-row-up') && !r.classList.contains('move-row-down'));
+        return rows.indexOf(row) + 1;
+    };
+
+    const moveRow = (row, direction, handle, focusTarget = 'handle') => {
+        if (!row) return;
+        removeMoveRows();
+        let moved = false;
+        if (direction === 'up') {
+            const prev = row.previousElementSibling;
+            if (prev) {
+                tbody.insertBefore(row, prev);
+                moved = true;
+            }
+        } else if (direction === 'down') {
+            const next = row.nextElementSibling;
+            if (next) {
+                tbody.insertBefore(row, next.nextElementSibling);
+                moved = true;
+            }
+        }
+        addMoveRows(row, handle);
+        setFocusLock([handle, currentControls.upBtn, currentControls.downBtn]);
+        if (focusTarget === 'up' && currentControls.upBtn) {
+            currentControls.upBtn.focus();
+        } else if (focusTarget === 'down' && currentControls.downBtn) {
+            currentControls.downBtn.focus();
+        } else if (handle) {
+            handle.focus();
+        }
+        if (moved) {
+            announce(`Moved ${direction === 'up' ? 'up' : 'down'} to position ${getRowPosition(row)} in the table`);
+        }
+    };
+
+    const toggleSelection = (row, handle) => {
+        if (selectedRow === row) {
+            selectedRow.classList.remove('selected-row');
+            handle.setAttribute('aria-grabbed', 'false');
+            selectedRow = null;
+            announce('Row deselected');
+            removeMoveRows();
+            clearFocusLock();
+        } else {
+            if (selectedRow && selectedRow !== row) {
+                selectedRow.classList.remove('selected-row');
+                const prevHandle = selectedRow.querySelector('.drag-icon');
+                if (prevHandle) prevHandle.setAttribute('aria-grabbed', 'false');
+                removeMoveRows();
+            }
+            selectedRow = row;
+            selectedRow.classList.add('selected-row');
+            handle.setAttribute('aria-grabbed', 'true');
+            announce(`${getRowLabel(selectedRow)} selected. Use up or down keys to move the item, Enter or Space to cancel.`);
+            addMoveRows(row, handle);
+            setFocusLock([handle, currentControls.upBtn, currentControls.downBtn]);
+        }
+    };
+
+    tbody.addEventListener('dragstart', (event) => {
+        const handle = event.target.closest('.drag-icon');
+        if (!handle) return;
+        draggedRow = handle.closest('tr');
+        draggedRow.classList.add('dragging');
+        handle.setAttribute('aria-grabbed', 'true');
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', getRowLabel(draggedRow));
+        }
+        announce(`Dragging ${getRowLabel(draggedRow)}`);
+    });
+
+    tbody.addEventListener('dragend', () => {
+        if (!draggedRow) return;
+        const handle = draggedRow.querySelector('.drag-icon');
+        if (handle) handle.setAttribute('aria-grabbed', 'false');
+        draggedRow.classList.remove('dragging');
+        draggedRow = null;
+        announce('Drag ended');
+    });
+
+    const moveAfter = (targetRow) => {
+        if (!draggedRow || !targetRow) return;
+        if (targetRow.classList.contains('move-row-up')) {
+            targetRow = targetRow.nextElementSibling;
+        } else if (targetRow.classList.contains('move-row-down')) {
+            targetRow = targetRow.previousElementSibling;
+        }
+        if (!targetRow || targetRow === draggedRow) return;
+
+        const parent = targetRow.parentNode;
+        const draggingSelected = selectedRow && draggedRow === selectedRow;
+
+        if (draggingSelected) {
+            const upRow = selectedRow.previousElementSibling?.classList.contains('move-row-up')
+                ? selectedRow.previousElementSibling
+                : null;
+            const downRow = selectedRow.nextElementSibling?.classList.contains('move-row-down')
+                ? selectedRow.nextElementSibling
+                : null;
+            if (!upRow || !downRow) return;
+
+            const block = document.createDocumentFragment();
+            block.appendChild(upRow);
+            block.appendChild(selectedRow);
+            block.appendChild(downRow);
+
+            let insertBeforeNode = parent.firstElementChild === targetRow ? targetRow : targetRow.nextElementSibling;
+            while (insertBeforeNode === upRow || insertBeforeNode === selectedRow || insertBeforeNode === downRow) {
+                insertBeforeNode = insertBeforeNode?.nextElementSibling;
+            }
+            parent.insertBefore(block, insertBeforeNode);
+            setFocusLock([selectedRow.querySelector('.drag-icon'), currentControls.upBtn, currentControls.downBtn]);
+        } else {
+            if (parent.firstElementChild === targetRow) {
+                parent.insertBefore(draggedRow, targetRow);
+            } else {
+                const next = targetRow.nextElementSibling;
+                if (next === draggedRow) return;
+                parent.insertBefore(draggedRow, next);
+            }
+        }
+    };
+
+    tbody.addEventListener('dragover', (event) => {
+        if (!draggedRow) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        const targetRow = event.target.closest('tr');
+        if (targetRow) moveAfter(targetRow);
+    });
+
+    tbody.addEventListener('drop', (event) => {
+        if (!draggedRow) return;
+        event.preventDefault();
+        const targetRow = event.target.closest('tr');
+        if (targetRow) moveAfter(targetRow);
+    });
+
+    handles.forEach((handle) => {
+        handle.addEventListener('keydown', (event) => {
+            const row = handle.closest('tr');
+            if (!selectedRow || selectedRow !== row) return;
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                moveRow(selectedRow, 'up', handle, 'handle');
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                moveRow(selectedRow, 'down', handle, 'handle');
+            }
+        });
+    });
+
+    let isDragging = false;
+    let pendingSelection = null;
+    let pendingPoint = null;
+
+    tbody.addEventListener('dragstart', () => {
+        isDragging = true;
+        pendingSelection = null;
+    });
+
+    tbody.addEventListener('dragend', () => {
+        setTimeout(() => {
+            isDragging = false;
+        }, 0);
+    });
+
+    handles.forEach((handle) => {
+        handle.addEventListener('mousedown', (event) => {
+            if (isDragging) return;
+            pendingSelection = { row: handle.closest('tr'), handle };
+            pendingPoint = { x: event.clientX, y: event.clientY };
+        });
+
+        // Keyboard click (Enter/Space) produces detail === 0
+        handle.addEventListener('click', (event) => {
+            if (isDragging) return;
+            if (event.detail !== 0) return; // ignore mouse clicks
+            event.preventDefault();
+            toggleSelection(handle.closest('tr'), handle);
+        });
+    });
+
+    document.addEventListener('mousemove', (event) => {
+        if (!pendingSelection || !pendingPoint) return;
+        const dx = Math.abs(event.clientX - pendingPoint.x);
+        const dy = Math.abs(event.clientY - pendingPoint.y);
+        if (dx > 3 || dy > 3) {
+            pendingSelection = null;
+            pendingPoint = null;
+        }
+    });
+
+    document.addEventListener('mouseup', (event) => {
+        if (!pendingSelection) return;
+        const { row, handle } = pendingSelection;
+        if (isDragging) {
+            pendingSelection = null;
+            pendingPoint = null;
+            return;
+        }
+        if (handle.contains(event.target)) {
+            event.preventDefault();
+            toggleSelection(row, handle);
+        }
+        pendingSelection = null;
+        pendingPoint = null;
+    });
+</script>
+
+</html>
